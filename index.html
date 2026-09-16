@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Balon Kata "Di"</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #87CEEB; /* Sky blue */
+            overflow: hidden; /* Prevent scrolling during game */
+            touch-action: manipulation; /* Prevent zoom on double tap */
+        }
+
+        h1, h2, h3, .fredoka {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #start-screen, #end-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            box-shadow: 10px 10px rgba(0,0,0,0.1);
+        }
+        
+        .cloud::before, .cloud::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .cloud1 { width: 100px; height: 40px; top: 10%; left: 10%; animation: float 15s linear infinite; }
+        .cloud1::before { width: 50px; height: 50px; top: -20px; left: 10px; }
+        .cloud1::after { width: 40px; height: 40px; top: -15px; right: 15px; }
+
+        .cloud2 { width: 120px; height: 50px; top: 20%; right: 15%; animation: float 20s linear infinite reverse; }
+        .cloud2::before { width: 60px; height: 60px; top: -30px; left: 15px; }
+        .cloud2::after { width: 50px; height: 50px; top: -20px; right: 20px; }
+
+        @keyframes float {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(50px); }
+            100% { transform: translateX(0); }
+        }
+
+        .balloon-container {
+            position: absolute;
+            bottom: -150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .balloon-container:active {
+            transform: scale(0.95);
+        }
+
+        .balloon {
+            min-width: 90px;
+            width: max-content;
+            height: 105px;
+            background-color: #ff4757;
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            position: relative;
+            box-shadow: inset -10px -10px 0 rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 10px 25px;
+        }
+
+        .balloon::before {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 8px solid #ff4757;
+        }
+
+        .string {
+            width: 2px;
+            height: 50px;
+            background-color: #f1f2f6;
+            margin-top: 8px;
+        }
+
+        .word-text {
+            color: white;
+            font-weight: bold;
+            font-size: 1.15rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            pointer-events: none; /* Let clicks pass through to container */
+            white-space: nowrap; /* Memaksa teks agar tetap dalam 1 baris */
+            line-height: 1.2;
+        }
+
+        @keyframes rise {
+            0% { bottom: -150px; }
+            100% { bottom: 110vh; }
+        }
+
+        .pop-effect {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            animation: pop 0.3s ease-out forwards;
+            pointer-events: none;
+            top: 50%;
+            left: 50%;
+        }
+
+        @keyframes pop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .score-box, .lives-box {
+            background-color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #target-word-box {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #fff200;
+            padding: 10px 30px;
+            border-radius: 30px;
+            border: 4px solid #ffa502;
+            box-shadow: 0 4px 0 #ffa502;
+            text-align: center;
+            z-index: 5;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .btn {
+            background-color: #2ed573;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #27ae60;
+            transition: all 0.1s;
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: none;
+        }
+        
+        .instruction-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid #ff4757;
+            max-width: 400px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .feedback-text {
+            position: absolute;
+            font-size: 2rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 20;
+        }
+
+        .correct-feedback { color: #2ed573; text-shadow: 2px 2px white; }
+        .wrong-feedback { color: #ff4757; text-shadow: 2px 2px white; }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <!-- Hiasan Awan -->
+        <div class="cloud cloud1"></div>
+        <div class="cloud cloud2"></div>
+
+        <!-- Layar Mulai -->
+        <div id="start-screen">
+            <h1 class="text-4xl md:text-5xl text-blue-600 mb-4 text-center fredoka px-4">Petualangan Balon "Di"</h1>
+            
+            <div class="instruction-card shadow-lg mx-4">
+                <h2 class="text-2xl text-red-500 mb-2 fredoka">Cara Bermain:</h2>
+                <p class="text-lg mb-2">Pilih balon dengan tulisan yang <b>BENAR</b>!</p>
+                <div class="text-left mt-4 text-sm md:text-base">
+                    <p class="mb-2">📍 <b>Dipisah (di ...)</b> jika menunjukkan <b>TEMPAT</b> atau <b>WAKTU</b>.<br>Contoh: <i>di sekolah, di pagi hari</i></p>
+                    <p>🧩 <b>Disambung (di...)</b> jika sebagai <b>AWALAN</b> kata kerja.<br>Contoh: <i>dimakan, dibaca</i></p>
+                </div>
+            </div>
+            
+            <button id="btn-start" class="btn fredoka mt-4">Mulai Main!</button>
+        </div>
+
+        <!-- HUD (Heads Up Display) -->
+        <div id="hud" class="hidden">
+            <div class="score-box text-blue-600">
+                <span>⭐ Skor:</span>
+                <span id="score-display">0</span>
+            </div>
+            <div class="lives-box text-red-500">
+                <span>❤️ Nyawa:</span>
+                <span id="lives-display">3</span>
+            </div>
+        </div>
+
+        <!-- Kotak Instruksi Target -->
+        <div id="target-word-box" class="hidden">
+            <p class="text-gray-700 text-sm font-bold mb-1">Tangkap balon yang tulisannya BENAR!</p>
+            <h2 id="question-text" class="text-2xl text-red-600 fredoka">Bersiap...</h2>
+        </div>
+
+        <!-- Area Balon Muncul -->
+        <div id="balloon-area" class="w-full h-full relative"></div>
+
+        <!-- Layar Akhir -->
+        <div id="end-screen" class="hidden">
+            <h1 class="text-5xl text-blue-600 mb-2 fredoka">Permainan Selesai!</h1>
+            <p class="text-2xl mb-4 text-gray-700">Skor Akhir Kamu:</p>
+            <div class="text-6xl text-yellow-500 font-bold mb-6 fredoka drop-shadow-md" id="final-score">0</div>
+            
+            <div id="feedback-message" class="text-xl text-center mb-6 px-4 max-w-md font-bold text-gray-600">
+                Bagus sekali! Terus berlatih ya.
+            </div>
+
+            <button id="btn-restart" class="btn fredoka">Main Lagi</button>
+        </div>
+
+    </div>
+
+    <script>
+        // Data bank kata (20 dipisah, 20 disambung)
+        const wordBank = {
+            dipisah: [
+                "di rumah", "di sekolah", "di pasar", "di jalan", "di atas",
+                "di bawah", "di depan", "di belakang", "di dalam", "di luar",
+                "di meja", "di kursi", "di kamar", "di taman", "di lapangan",
+                "di pagi hari", "di malam hari", "di sana", "di sini", "di mana"
+            ],
+            disambung: [
+                "dimakan", "dibaca", "ditulis", "dilihat", "dibawa",
+                "dipukul", "dilempar", "diambil", "dijual", "dibeli",
+                "disimpan", "dibuang", "dicari", "diminum", "dibuka",
+                "ditutup", "dicuci", "dipakai", "dijaga", "dijawab"
+            ]
+        };
+
+        // Fungsi untuk membuat variasi salah (untuk mengecoh)
+        function generateWrongVersion(word, isCorrectlyDipisah) {
+            if (isCorrectlyDipisah) {
+                // Harusnya dipisah, kita buat versi salahnya disambung
+                return word.replace("di ", "di");
+            } else {
+                // Harusnya disambung, kita buat versi salahnya dipisah
+                return word.replace("di", "di ");
+            }
+        }
+
+        // Kumpulan warna balon
+        const balloonColors = ['#ff4757', '#ffa502', '#2ed573', '#1e90ff', '#9b59b6'];
+
+        // Variabel Status Game
+        let score = 0;
+        let lives = 3;
+        let gameInterval;
+        let balloonSpawnInterval;
+        let speedMultiplier = 1;
+        let isGameRunning = false;
+        let usedWords = []; // Untuk mencegah kata yang sama muncul terlalu sering berdekatan
+
+        // Elemen DOM
+        const startScreen = document.getElementById('start-screen');
+        const hud = document.getElementById('hud');
+        const targetWordBox = document.getElementById('target-word-box');
+        const endScreen = document.getElementById('end-screen');
+        const balloonArea = document.getElementById('balloon-area');
+        const scoreDisplay = document.getElementById('score-display');
+        const livesDisplay = document.getElementById('lives-display');
+        const questionText = document.getElementById('question-text');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const btnStart = document.getElementById('btn-start');
+        const btnRestart = document.getElementById('btn-restart');
+
+        btnStart.addEventListener('click', startGame);
+        btnRestart.addEventListener('click', startGame);
+
+        function startGame() {
+            // Reset Variabel
+            score = 0;
+            lives = 3;
+            speedMultiplier = 1;
+            usedWords = [];
+            isGameRunning = true;
+            
+            updateHUD();
+
+            // Atur Visibilitas Layar
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+            targetWordBox.classList.remove('hidden');
+            
+            // Bersihkan area
+            balloonArea.innerHTML = '';
+            
+            questionText.innerText = "Pilih penulisan yang BENAR!";
+
+            // Mulai memunculkan balon
+            spawnBalloons();
+            
+            // Tingkatkan kesulitan perlahan
+            gameInterval = setInterval(() => {
+                if(isGameRunning) {
+                    speedMultiplier += 0.05;
+                }
+            }, 5000); // Setiap 5 detik sedikit lebih cepat
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            clearInterval(gameInterval);
+            clearTimeout(balloonSpawnInterval);
+            
+            // Hentikan semua balon yang ada
+            const balloons = document.querySelectorAll('.balloon-container');
+            balloons.forEach(b => b.style.animationPlayState = 'paused');
+
+            setTimeout(() => {
+                hud.classList.add('hidden');
+                targetWordBox.classList.add('hidden');
+                endScreen.classList.remove('hidden');
+                
+                finalScoreDisplay.innerText = score;
+                
+                if (score >= 150) {
+                    feedbackMessage.innerText = "Luar Biasa! Kamu sangat paham cara menggunakan kata 'di'. 🌟";
+                } else if (score >= 80) {
+                    feedbackMessage.innerText = "Hebat! Pemahamanmu sudah bagus. Terus berlatih agar makin pintar! 👍";
+                } else {
+                    feedbackMessage.innerText = "Jangan menyerah! Ayo coba lagi dan perhatikan aturannya. 💪";
+                }
+            }, 1000);
+        }
+
+        function updateHUD() {
+            scoreDisplay.innerText = score;
+            livesDisplay.innerText = lives;
+            if (lives <= 0 && isGameRunning) {
+                endGame();
+            }
+        }
+
+        function getRandomWord() {
+            // Tentukan tipe acak (50% peluang dari kelompok 'dipisah', 50% dari 'disambung')
+            const isTypeDipisah = Math.random() < 0.5;
+            const sourceArray = isTypeDipisah ? wordBank.dipisah : wordBank.disambung;
+            
+            // Pilih kata acak dari array tersebut
+            let randomIndex = Math.floor(Math.random() * sourceArray.length);
+            let baseWord = sourceArray[randomIndex];
+
+            // Tentukan apakah kata ini akan ditampilkan dalam bentuk BENAR atau SALAH
+            // Buat peluang muncul yang benar sedikit lebih besar agar tidak frustrasi
+            const isCorrectVersion = Math.random() < 0.6; 
+            
+            let displayWord = baseWord;
+            if (!isCorrectVersion) {
+                displayWord = generateWrongVersion(baseWord, isTypeDipisah);
+            }
+
+            return {
+                text: displayWord,
+                isCorrect: isCorrectVersion
+            };
+        }
+
+        function spawnBalloons() {
+            if (!isGameRunning) return;
+
+            // Dapatkan kata untuk balon ini
+            const wordData = getRandomWord();
+            
+            createBalloon(wordData);
+
+            // Hitung waktu tunggu untuk balon berikutnya (semakin cepat seiring waktu)
+            let baseDelay = 1500;
+            let currentDelay = Math.max(600, baseDelay / speedMultiplier);
+            
+            balloonSpawnInterval = setTimeout(spawnBalloons, currentDelay + (Math.random() * 500));
+        }
+
+        function createBalloon(wordData) {
+            const container = document.createElement('div');
+            container.className = 'balloon-container';
+            
+            // Posisi X acak, hindari terlalu pinggir
+            const screenWidth = window.innerWidth;
+            const safeMargin = 50;
+            // Gunakan 150 sebagai estimasi lebar maksimal balon, agar tidak muncul di luar layar
+            const randomX = safeMargin + Math.random() * (screenWidth - (safeMargin * 2) - 150);
+            container.style.left = `${randomX}px`;
+
+            // Kecepatan animasi (durasi)
+            const baseDuration = 6; // detik
+            const duration = Math.max(2.5, baseDuration / speedMultiplier);
+            
+            // Terapkan animasi
+            container.style.animation = `rise ${duration}s linear forwards`;
+
+            // Warna acak
+            const color = balloonColors[Math.floor(Math.random() * balloonColors.length)];
+
+            // Elemen visual balon
+            const balloon = document.createElement('div');
+            balloon.className = 'balloon';
+            balloon.style.backgroundColor = color;
+            
+            // Tambahkan pseudo-element style secara manual karena tailwind/inline sulit untuk ini
+            const style = document.createElement('style');
+            style.innerHTML = `
+                #b_${Date.now()}::before {
+                    border-bottom-color: ${color} !important;
+                }
+            `;
+            document.head.appendChild(style);
+            balloon.id = `b_${Date.now()}`;
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'word-text';
+            textSpan.innerText = wordData.text;
+
+            const string = document.createElement('div');
+            string.className = 'string';
+
+            balloon.appendChild(textSpan);
+            container.appendChild(balloon);
+            container.appendChild(string);
+            
+            balloonArea.appendChild(container);
+
+            let isPopped = false;
+
+            // Handle klik pada balon
+            container.addEventListener('pointerdown', (e) => {
+                if (!isGameRunning || isPopped) return;
+                isPopped = true;
+                
+                checkAnswer(wordData, container, e.clientX, e.clientY);
+            });
+
+            // Hapus balon jika sudah melewati layar atas
+            container.addEventListener('animationend', () => {
+                if (container.parentNode) {
+                    // Jika balon terlewat dan ternyata itu balon yang BENAR, kurangi nyawa
+                    // (Hanya kurangi nyawa jika melewatkan jawaban benar)
+                    if (wordData.isCorrect && isGameRunning) {
+                        lives--;
+                        showFeedback("Terlewat!", container.offsetLeft, 100, false);
+                        updateHUD();
+                    }
+                    container.remove();
+                }
+                if (document.head.contains(style)) style.remove();
+            });
+        }
+
+        function checkAnswer(wordData, balloonEl, clickX, clickY) {
+            // Hentikan animasi
+            balloonEl.style.animationPlayState = 'paused';
+            
+            // Buat efek meletus
+            const popEffect = document.createElement('div');
+            popEffect.className = 'pop-effect';
+            balloonEl.appendChild(popEffect);
+            
+            // Sembunyikan elemen balon
+            balloonEl.querySelector('.balloon').style.opacity = '0';
+            balloonEl.querySelector('.string').style.opacity = '0';
+
+            // Evaluasi jawaban
+            if (wordData.isCorrect) {
+                // Pemain memilih kata yang penulisannya BENAR (Tepat!)
+                score += 10;
+                showFeedback("+10", clickX, clickY, true);
+            } else {
+                // Pemain memilih kata yang penulisannya SALAH (Salah!)
+                lives--;
+                showFeedback("Salah!", clickX, clickY, false);
+            }
+
+            updateHUD();
+
+            // Hapus elemen setelah efek selesai
+            setTimeout(() => {
+                if (balloonEl.parentNode) balloonEl.remove();
+            }, 300);
+        }
+
+        function showFeedback(text, x, y, isPositive) {
+            const feedback = document.createElement('div');
+            feedback.className = `feedback-text ${isPositive ? 'correct-feedback' : 'wrong-feedback'}`;
+            feedback.innerText = text;
+            
+            // Batasi agar teks tidak keluar layar
+            const screenWidth = window.innerWidth;
+            const xPos = Math.min(Math.max(20, x - 20), screenWidth - 60);
+            
+            feedback.style.left = `${xPos}px`;
+            feedback.style.top = `${y - 40}px`;
+            
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => {
+                if (feedback.parentNode) feedback.remove();
+            }, 1000);
+        }
+
+    </script>
+</body>
+</html>
